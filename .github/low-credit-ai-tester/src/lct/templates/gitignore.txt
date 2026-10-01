@@ -1,0 +1,11 @@
+
+# Low Credit AI Tester Kit: secrets, browser logins and company data stay on this laptop
+qa/.env
+qa/.lct-state.json
+qa/.browser-profile/
+qa/repos/
+qa/jira/
+qa/evidence/
+qa/reports/
+qa/shots/
+.venv/

@@ -1,0 +1,16 @@
+{
+  "id": "DEMO-101",
+  "title": "Retest: Phone field is shown on Customer profile",
+  "description": "Bug: the Phone field was missing from the Contact section of the Customer profile. Fixed; retest that it shows with the saved value.",
+  "environment": {
+    "app": "demo",
+    "url": "http://127.0.0.1:5175/login",
+    "name": "Local",
+    "build": "demo"
+  },
+  "steps": [
+    { "action": "Log in with the test user", "expected": "Customer profile page opens" },
+    { "action": "Check the Phone field in the Contact section", "expected": "Phone field is shown with a value" },
+    { "action": "Click Logout", "expected": "Sign in page is shown" }
+  ]
+}

@@ -1,0 +1,21 @@
+[project]
+name = "low-credit-ai-tester"
+version = "1.0.0"
+description = "Low Credit AI Tester Kit: manual testing with GitHub Copilot at minimum AI credits (Jira cards, headed Edge, full-screen evidence, Word reports)."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "playwright>=1.50",
+  "python-docx>=1.1",
+  "mss>=9.0",
+]
+
+[project.scripts]
+lct = "lct.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lct"]

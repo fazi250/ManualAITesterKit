@@ -1,0 +1,32 @@
+{
+  "chat.agent.maxRequests": 40,
+  "chat.tools.compressOutput.enabled": true,
+  "chat.includeApplyingInstructions": true,
+  "github.copilot.chat.summarizeAgentConversationHistory.enabled": true,
+  "github.copilot.chat.agent.thinkingTool": false,
+  "json.schemas": [
+    {
+      "fileMatch": ["/qa/testcases/*-*.json"],
+      "url": "./qa/testcases/testcase.schema.json"
+    }
+  ],
+  "search.exclude": {
+    "qa/repos/**": true,
+    "qa/evidence/**": true,
+    "qa/reports/**": true,
+    "playwright-report/**": true,
+    "test-results/**": true,
+    ".venv/**": true
+  },
+  "files.exclude": {
+    "qa/.browser-profile": true
+  },
+  "files.watcherExclude": {
+    "qa/.browser-profile/**": true,
+    "qa/repos/**": true,
+    ".venv/**": true
+  },
+  "terminal.integrated.env.windows": {
+    "PATH": "${workspaceFolder}\\.venv\\Scripts;${env:PATH}"
+  }
+}
