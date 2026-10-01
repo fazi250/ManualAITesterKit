@@ -161,8 +161,10 @@ def snap_step(page: Page, test_id: str, step: int) -> str:
     folder = QA / "evidence" / test_id
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f"step-{step:02d}.png"
-    if os.environ.get("QA_SNAP_MODE") == "page" or not IS_WIN:
-        return _page_capture(page, path, "QA_SNAP_MODE=page" if IS_WIN else "not Windows")
+    headless = os.environ.get("LCT_HEADLESS") == "1"
+    if os.environ.get("QA_SNAP_MODE") == "page" or headless or not IS_WIN:
+        reason = "not Windows" if not IS_WIN else "background mode" if headless else "QA_SNAP_MODE=page"
+        return _page_capture(page, path, reason)
     if is_locked():
         return _page_capture(page, path, "screen locked")
     page.bring_to_front()

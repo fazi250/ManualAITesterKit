@@ -79,7 +79,8 @@ def _launch(url: str) -> str:
     _quiet_profile()
     flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
     subprocess.Popen(
-        [_browser_exe(), f"--remote-debugging-port={PORT}", f"--user-data-dir={PROFILE}", *_FLAGS, url],
+        [_browser_exe(), f"--remote-debugging-port={PORT}", f"--user-data-dir={PROFILE}", *_FLAGS,
+         *(["--headless=new", "--window-size=1920,1080"] if os.environ.get("LCT_HEADLESS") == "1" else []), url],
         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         creationflags=flags, close_fds=True,
     )

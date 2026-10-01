@@ -17,17 +17,18 @@ from playwright.sync_api import Locator, Page
 
 from .config import QA, fail
 
-Kind = Literal["goto", "click", "fill", "select", "press", "expect", "read", "mark", "wait"]
-KINDS: tuple[Kind, ...] = ("goto", "click", "fill", "select", "press", "expect", "read", "mark", "wait")
+Kind = Literal["goto", "click", "hover", "check", "fill", "select", "press", "expect", "read", "mark", "wait"]
+KINDS: tuple[Kind, ...] = ("goto", "click", "hover", "check", "fill", "select", "press", "expect", "read", "mark", "wait")
 SELECTOR_PREFIXES = ("css=", "xpath=", "role=", "text=", "id=", "#", "//", "[")
 
 ACTIONS_HELP = """actions run in the order given:
-  --goto URL  --click TEXT  --fill "LABEL=VALUE"  --select "LABEL=OPTION"  --press KEY  --wait SECONDS
+  --goto URL  --click TEXT  --hover TEXT (menus that open on hover)  --check TEXT (radio/checkbox)
+  --fill "LABEL=VALUE"  --select "LABEL=OPTION"  --press KEY  --wait SECONDS
 checks (decide Pass/Fail):
   --expect TEXT   text must be visible on the page
   --read LABEL    field must be visible and not empty (its value is reported)
-evidence:
-  --mark LABEL    red box around the element before the snap
+evidence (lct step):
+  fields you fill/select/check/read get a red box automatically; --mark LABEL adds one to anything else
 TEXT/LABEL: best a number from `lct page` (e.g. --click 7), else visible text/label,
 or a Playwright selector: css=..., role=button[name="Save"], #id, //xpath"""
 
@@ -111,9 +112,13 @@ def locate(page: Page, target: str) -> Locator:
 
 READ_JS = """(e) => [(e.labels && e.labels[0] && e.labels[0].innerText) || e.getAttribute('aria-label') || e.placeholder
   || e.name || '', ('value' in e && e.value) || e.textContent || '']"""
-MARK_JS = """(e) => { e.setAttribute('data-qa-mark', e.style.outline || '');
+MARK_JS = """(e) => { if (e.hasAttribute('data-qa-mark')) return; e.setAttribute('data-qa-mark', e.style.outline || '');
   (window.__lctMarked = window.__lctMarked || []).push(e);
-  e.style.outline = '4px solid #e00000'; e.style.outlineOffset = '3px'; e.scrollIntoView({ block: 'center' }); }"""
+  e.style.outline = '4px solid #e00000'; e.style.outlineOffset = '3px'; }"""
+# Scroll so the marked elements are on screen together (top of the group a little below the top).
+SHOW_MARKS_JS = """() => { const els = (window.__lctMarked || []).filter((e) => e.isConnected); if (!els.length) return;
+  const top = Math.min(...els.map((e) => e.getBoundingClientRect().top + window.scrollY));
+  window.scrollTo({ top: Math.max(0, top - 140), behavior: 'instant' }); }"""
 UNMARK_JS = """() => { (window.__lctMarked || []).forEach((e) => {
   e.style.outline = e.getAttribute('data-qa-mark') || ''; e.style.outlineOffset = ''; e.removeAttribute('data-qa-mark'); });
   window.__lctMarked = []; }"""
@@ -146,14 +151,18 @@ _SETTLE_JS = """async ({ quiet, timeout, busy }) => {
 
 
 def settle(page: Page) -> None:
-    """Waits (max LCT_SETTLE_MS, default 8000) until AJAX activity is over in every frame."""
+    """Waits (max LCT_SETTLE_MS, default 8000) until page loads and AJAX activity are over in every frame."""
     options = {"quiet": 400, "timeout": int(os.environ.get("LCT_SETTLE_MS", "8000")),
                "busy": os.environ.get("LCT_BUSY_SELECTOR", "")}
-    for frame in page.frames:
+    for _ in range(3):  # a navigation can start while we wait: then wait for the new page and check again
         try:
-            frame.evaluate(_SETTLE_JS, options)
+            page.wait_for_load_state("load", timeout=15_000)
+            for frame in page.frames:
+                if not frame.is_detached():
+                    frame.evaluate(_SETTLE_JS, options)
+            return
         except Exception:
-            continue
+            page.wait_for_timeout(300)
 
 
 def _expect_text(page: Page, text: str, timeout_s: float = 10) -> None:
@@ -171,9 +180,14 @@ def _expect_text(page: Page, text: str, timeout_s: float = 10) -> None:
         page.wait_for_timeout(300)
 
 
-def run_actions(page: Page, actions: list[Action]) -> tuple[bool, str, Page]:
-    """Runs actions in order. Returns (ok, what was seen / why it failed, the page now in use)."""
+def run_actions(page: Page, actions: list[Action], auto_mark: bool = False) -> tuple[bool, str, Page]:
+    """Runs actions in order. Returns (ok, what was seen / why it failed, the page now in use).
+    auto_mark (lct step): every field filled/selected/checked/read gets a red box for the snap."""
     from .browser import use_tab
+
+    def touched(element: Locator) -> None:
+        if auto_mark:
+            element.evaluate(MARK_JS)
 
     seen: list[str] = []
     try:
@@ -183,15 +197,27 @@ def run_actions(page: Page, actions: list[Action]) -> tuple[bool, str, Page]:
             elif a.kind == "click":
                 before = list(page.context.pages)
                 locate(page, a.target).click()
-                page.wait_for_timeout(300)
+                page.wait_for_timeout(500)  # let a navigation / new tab start before waiting for it
                 opened = [p for p in page.context.pages if p not in before]
                 if opened:  # the click opened a new tab: continue there
                     page = use_tab(opened[-1])
-                    page.wait_for_load_state()
+            elif a.kind == "hover":
+                element = locate(page, a.target)
+                element.hover()
+                touched(element)
+                page.wait_for_timeout(400)  # hover menus animate open
+            elif a.kind == "check":
+                element = locate(page, a.target)
+                element.check()
+                touched(element)
             elif a.kind == "fill":
-                locate(page, a.target).fill(a.value)
+                element = locate(page, a.target)
+                element.fill(a.value)
+                touched(element)
             elif a.kind == "select":
-                locate(page, a.target).select_option(label=a.value)
+                element = locate(page, a.target)
+                element.select_option(label=a.value)
+                touched(element)
             elif a.kind == "press":
                 page.keyboard.press(a.target)
             elif a.kind == "wait":
@@ -200,21 +226,24 @@ def run_actions(page: Page, actions: list[Action]) -> tuple[bool, str, Page]:
                 _expect_text(page, a.target)
                 seen.append(f'"{a.target}" shown')
             elif a.kind == "read":
-                name, value = locate(page, a.target).evaluate(READ_JS)
+                element = locate(page, a.target)
+                name, value = element.evaluate(READ_JS)
                 label = str(name).strip() if a.target.isdigit() and str(name).strip() else a.target
                 if not str(value).strip():
                     raise ValueError(f"{label} is empty")
+                touched(element)
                 seen.append(f"{label}: {' '.join(str(value).split())[:80]}")
             elif a.kind == "mark":
                 locate(page, a.target).evaluate(MARK_JS)
-            if a.kind in ("goto", "click", "fill", "select", "press"):
-                try:
-                    page.wait_for_load_state("domcontentloaded", timeout=10_000)
-                except Exception:
-                    pass
+            if a.kind in ("goto", "click", "check", "fill", "select", "press"):
                 settle(page)
     except Exception as e:  # report the first line only
         return False, (str(e).strip().splitlines()[0][:200] if str(e).strip() else type(e).__name__), page
+    for frame in page.frames:  # marked fields on screen for the snap
+        try:
+            frame.evaluate(SHOW_MARKS_JS)
+        except Exception:
+            continue
     return True, "; ".join(seen) or "Done", page
 
 

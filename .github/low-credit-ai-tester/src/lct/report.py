@@ -109,6 +109,10 @@ def _section(doc: DocxDocument, tc: dict[str, Any], first: bool, hide_password: 
         shot = shots / f"step-{n:02d}.png"
         if shot.exists():
             doc.add_picture(str(shot), width=Inches(6.6))
+        elif step.get("result"):  # a result without evidence must be visible in the report
+            note = doc.add_paragraph().add_run("(no screenshot for this step: it was not run with `lct step`)")
+            note.italic = True
+            note.font.color.rgb = COLOR["Blocked"]
 
 
 def build(ids: list[str], hide_password: bool = False, all_cases: bool = False) -> None:

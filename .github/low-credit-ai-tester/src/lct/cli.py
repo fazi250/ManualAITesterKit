@@ -192,7 +192,7 @@ def _browser_command(args: argparse.Namespace, extra: list[str]) -> None:
         elif cmd == "step":
             from .snap import snap_step
 
-            ok, actual, page = run_actions(page, actions)
+            ok, actual, page = run_actions(page, actions, auto_mark=True)
             shot = snap_step(page, args.id, args.n)
             unmark(page)
             write_result(args.id, args.n, ok, actual)

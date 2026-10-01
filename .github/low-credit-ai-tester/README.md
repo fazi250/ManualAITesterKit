@@ -26,9 +26,10 @@ Copilot does the thinking; `lct` commands do the work and print 1–2 lines. Tha
 | "App mein login karo, Phone field check karo" / `/run-test PROJ-123` | Logs in from `qa/.env`. Each step: action, check, red box, full-screen HD snap |
 | "DOCX bana do" / `lct report` | Word report: URL, environment, username, password, Jira card, description, steps + snaps (0 tokens) |
 | "Repo X refer karke Ruby/Playwright script likho" / `/write-automation` | Searches the indexes, opens max 2 files. GitHub MCP: 4 read-only tools |
+| Copilot asks "Kit fix kar doon?" | It found a problem in the kit. Say yes and it fixes the kit (skill `improve-kit`), tests the fix and logs it in `CHANGELOG.md`. Push `.github` to share the fix |
 
 Notes:
-- Don't use the PC while the AI is testing: the browser comes to the front for each snap. Set `QA_SNAP_MODE=page` in `qa/.env` if you want to keep working.
+- Don't use the PC while the AI is testing: the browser comes to the front for each snap. Set `QA_SNAP_MODE=page` in `qa/.env` to keep working, or `LCT_HEADLESS=1` to keep the browser hidden.
 - Keep passwords in `qa/.env` only, not in chat.
 - Start a new chat for each card.
 - Reference repos: `git clone --depth 1 <url> qa/repos/<name>`, then `lct index`.
